@@ -1,0 +1,2 @@
+# CUDA_VISIBLE_DEVICES=1 python train.py --config_file configs/transformer_base.yml
+CUDA_VISIBLE_DEVICES=1 python test.py --config_file configs/transformer_base.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs/downloaded_models/vit_transreid_duke.pth'

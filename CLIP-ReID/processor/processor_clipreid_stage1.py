@@ -7,7 +7,8 @@ from torch.cuda import amp
 import torch.distributed as dist
 import collections
 from torch.nn import functional as F
-from loss.supcontrast import SupConLoss
+from loss.supcontrast import SupConLoss, CLIPClsLoss
+from model.make_model_clipreid_test import *
 
 def do_train_stage1(cfg,
              model,
@@ -32,6 +33,7 @@ def do_train_stage1(cfg,
     loss_meter = AverageMeter()
     scaler = amp.GradScaler()
     xent = SupConLoss(device)
+    xent_cam = CLIPClsLoss(device)
     
     # train
     import time
@@ -40,23 +42,27 @@ def do_train_stage1(cfg,
     logger.info("model: {}".format(model))
     image_features = []
     labels = []
+    cams = []
     with torch.no_grad():
         for n_iter, (img, vid, target_cam, target_view) in enumerate(train_loader_stage1):
             #breakpoint()
             img = img.to(device)
             target = vid.to(device)
+            camid = target_cam.to(device)
             with amp.autocast(enabled=True):
                 image_feature = model(img, target, get_image = True)
-                for i, img_feat in zip(target, image_feature):
+                for i, c, img_feat in zip(target, camid, image_feature):
                     labels.append(i)
+                    cams.append(c)
                     image_features.append(img_feat.cpu())
-        labels_list = torch.stack(labels, dim=0).cuda() #N
+        labels_list = torch.stack(labels, dim=0) #N
+        cams_list = torch.stack(cams, dim=0) #N
         image_features_list = torch.stack(image_features, dim=0).cuda()
 
         batch = cfg.SOLVER.STAGE1.IMS_PER_BATCH
         num_image = labels_list.shape[0]
         i_ter = num_image // batch
-    del labels, image_features
+    del labels, image_features, cams
 
     for epoch in range(1, epochs + 1):
         loss_meter.reset()
@@ -72,15 +78,26 @@ def do_train_stage1(cfg,
                 b_list = iter_list[i*batch:num_image]
             
             target = labels_list[b_list]
+            camid = cams_list[b_list]
             image_features = image_features_list[b_list]
             with amp.autocast(enabled=True):
                 text_features = model(label = target, get_text = True)
+                if hasattr(model, "cam_prompt_learner") and isinstance(getattr(model, "cam_prompt_learner"), PromptLearner_background):
+                    camprompts = model.cam_prompt_learner(camid, stage2=False) 
+                    cam_text_features = model.text_encoder(camprompts, model.cam_prompt_learner.tokenized_prompts)
+                else: cam_text_features = None
             #if i == i_ter: breakpoint()
             loss_i2t = xent(image_features, text_features, target, target)
             loss_t2i = xent(text_features, image_features, target, target)
 
             loss = loss_i2t + loss_t2i
-
+            if cam_text_features is not None:
+                #breakpoint()
+                #cam_loss = xent_cam(image_features, cam_text_features, camid) + xent_cam(cam_text_features, image_features, camid)
+                cam_loss = xent(image_features, cam_text_features, camid, camid) + xent(cam_text_features, image_features, camid, camid)
+                loss += cam_loss
+            else: cam_loss = "N/A"
+                
             scaler.scale(loss).backward()
 
             scaler.step(optimizer)
@@ -90,9 +107,9 @@ def do_train_stage1(cfg,
 
             torch.cuda.synchronize()
             if (i + 1) % log_period == 0:
-                logger.info("Epoch[{}] Iteration[{}/{}] Loss: {:.3f}, Base Lr: {:.2e}"
+                logger.info("Epoch[{}] Iteration[{}/{}] Loss: {:.3f}, camloss: {:.3f} Base Lr: {:.2e}"
                             .format(epoch, (i + 1), len(train_loader_stage1),
-                                    loss_meter.avg, scheduler._get_lr(epoch)[0]))
+                                    loss_meter.avg, cam_loss.item(), scheduler._get_lr(epoch)[0]))
 
         if epoch % checkpoint_period == 0:
             if cfg.MODEL.DIST_TRAIN:

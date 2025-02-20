@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class SupConLoss(nn.Module):
     def __init__(self, device):
@@ -15,6 +16,7 @@ class SupConLoss(nn.Module):
     def forward(self, text_features, image_features, t_label, i_targets, reduce=True): 
         batch_size = text_features.shape[0] 
         batch_size_N = image_features.shape[0] 
+        #breakpoint()
         mask = torch.eq(t_label.unsqueeze(1).expand(batch_size, batch_size_N), \
             i_targets.unsqueeze(0).expand(batch_size,batch_size_N)).float().to(self.device) 
 
@@ -27,5 +29,20 @@ class SupConLoss(nn.Module):
         mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1) 
         if reduce: loss = - mean_log_prob_pos.mean()
         else: loss = - mean_log_prob_pos
+
+        return loss
+    
+class CLIPClsLoss(nn.Module):
+    def __init__(self, device):
+        super(CLIPClsLoss, self).__init__()
+        self.device = device
+        self.temperature = 1.0
+    
+    def forward(self, text_features, image_features, cam_labels, reduce=True): 
+        #breakpoint()
+        IF = image_features #/ image_features.norm(dim=-1, keepdim=True)
+        TF = text_features #/ text_features.norm(dim=-1, keepdim=True)
+        cam_similarity = ((IF @ TF.t())).softmax(dim=-1)
+        loss = F.cross_entropy(cam_similarity, cam_labels.to(self.device))
 
         return loss

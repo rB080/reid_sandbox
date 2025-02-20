@@ -141,7 +141,7 @@ def do_train(cfg,
 def do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, segmentor=None, path=None, save_sample=False):
+                 num_query, segmentor=None, path=None, save_sample=False, camera_normalize=False):
     device = "cuda"
     logger = logging.getLogger("transreid.test")
     logger.info("Enter inferencing")
@@ -159,6 +159,7 @@ def do_inference(cfg,
 
     model.eval()
     img_path_list = []
+    cam_dict = {}
 
     for n_iter, (img, seg_img, pid, camid, camids, target_view, imgpath) in tqdm(enumerate(val_loader), total=len(val_loader)):
         with torch.no_grad():
@@ -178,6 +179,12 @@ def do_inference(cfg,
             camids = camids.to(device)
             target_view = target_view.to(device)
             feat = model(img, cam_label=camids, view_label=target_view)
+            if camera_normalize:
+                for cid in camid:
+                    if cid in list(cam_dict.keys()):
+                        cam_dict[cid].append(feat.detach().cpu())
+                    else:
+                        cam_dict[cid] = [feat.detach().cpu()]
             evaluator.update((feat, pid, camid))
             img_path_list.extend(imgpath)
             if save_sample:
@@ -185,15 +192,35 @@ def do_inference(cfg,
                 img1 = img_new[0]
                 save_image(img1, os.path.join(path, "sample.png"))
 
+    if camera_normalize:
+        for key, feat in cam_dict.items():
+            cam_dict[key] = torch.cat(feat, 0)
+            cam_dict[key] = [cam_dict[key].mean(0), cam_dict[key].std(0)]
+        feats = torch.cat(evaluator.feats, dim=0)
+        means, stds = [], []
+        #breakpoint()
+        for i in range(feats.shape[0]):
+            means.append(cam_dict[evaluator.camids[i]][0])
+            stds.append(cam_dict[evaluator.camids[i]][1])
+        means = torch.stack(means)
+        stds = torch.stack(stds)
+        #breakpoint()
+        feats = (feats - means) / stds
+        evaluator.feats = feats
+
     cmc, mAP, distmat, pids, camids, qf, gf = evaluator.compute()
+    #breakpoint()
     if path is not None:
-        torch.save(distmat, f"{path}/distmat_og.pth", pickle_protocol=4)
-        torch.save(qf, f"{path}/qf_og.pth", pickle_protocol=4)
-        torch.save(gf, f"{path}/gf_og.pth", pickle_protocol=4)
+        torch.save(distmat, f"{path}/distmat_og.pth")
+        print(os.path.isfile(f"{path}/distmat_og.pth"))
+        print(f"{path}/distmat_og.pth")
+        torch.save(qf, f"{path}/qf_og.pth")
+        torch.save(gf, f"{path}/gf_og.pth")
         with open(f"{path}/imgpaths.json", 'w') as f:
             f.write(json.dumps(img_path_list))
-        torch.save(pids, f"{path}/pids.pth", pickle_protocol=4)
-        torch.save(camids, f"{path}/camids.pth", pickle_protocol=4)
+        torch.save(pids, f"{path}/pids.pth")
+        torch.save(camids, f"{path}/camids.pth")
+    
     logger.info("Validation Results ")
     logger.info("mAP: {:.1%}".format(mAP))
     for r in [1, 5, 10]:

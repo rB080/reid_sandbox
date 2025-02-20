@@ -1,6 +1,7 @@
 from utils.logger import setup_logger
 from datasets.make_dataloader_clipreid import make_dataloader
-from model.make_model_clipreid import make_model
+#from model.make_model_clipreid import make_model
+from model.make_model_clipreid_test import make_model
 from solver.make_optimizer_prompt import make_optimizer_1stage, make_optimizer_2stage
 from solver.scheduler_factory import create_scheduler
 from solver.lr_scheduler import WarmupMultiStepLR
@@ -66,22 +67,22 @@ if __name__ == '__main__':
     train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
     #breakpoint()
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
-    model.load_param(cfg.TEST.WEIGHT)
+    # model.load_param(cfg.TEST.WEIGHT)
 
     loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
 
-    # optimizer_1stage = make_optimizer_1stage(cfg, model)
-    # scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
-    #                     warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
+    optimizer_1stage = make_optimizer_1stage(cfg, model)
+    scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
+                        warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
 
-    # do_train_stage1(
-    #     cfg,
-    #     model,
-    #     train_loader_stage1,
-    #     optimizer_1stage,
-    #     scheduler_1stage,
-    #     args.local_rank
-    # )
+    do_train_stage1(
+        cfg,
+        model,
+        train_loader_stage1,
+        optimizer_1stage,
+        scheduler_1stage,
+        args.local_rank
+    )
 
     optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
     scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
@@ -100,6 +101,29 @@ if __name__ == '__main__':
         num_query, args.local_rank
     )
 
+    print('Testing on MSMT17')
+    do_inference(cfg,
+                 model,
+                 val_loader,
+                 num_query)
+    
+    print('Testing on market')
+    cfg.defrost()
+    cfg.DATASETS.NAME = 'market1501'
+    cfg.DATASETS.ROOT_DIR = '/export/livia/home/vision/Rbhattacharya/work/data/data/market1501'
+    cfg.freeze()
+    train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
+    do_inference(cfg,
+                 model,
+                 val_loader,
+                 num_query)
+    
+    print('Testing on duke')
+    cfg.defrost()
+    cfg.DATASETS.NAME = 'dukemtmc'
+    cfg.DATASETS.ROOT_DIR = '/export/livia/home/vision/Rbhattacharya/work/data/data'
+    cfg.freeze()
+    train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
     do_inference(cfg,
                  model,
                  val_loader,

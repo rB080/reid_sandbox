@@ -206,7 +206,7 @@ class build_transformer(nn.Module):
                 self.state_dict()[i.replace('module.', '')].copy_(param_dict[i])
             except:
                 print(i, param_dict[i].shape)#, self.state_dict()[i.replace('module.', '')].shape)
-        breakpoint()
+        #breakpoint()
         print('Loading pretrained model from {}'.format(trained_path))
 
     def load_param_finetune(self, model_path):

@@ -1,0 +1,6 @@
+CUDA_VISIBLE_DEVICES=2 python test_clipreid_tent.py --config_file configs/person/vit_clipreid.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/downloaded_models/MSMT17_clipreid_ViT-B-16_60.pth'
+#CUDA_VISIBLE_DEVICES=1 python test_clipreid.py --config_file configs/person/vit_clipreid.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/downloaded_models/MSMT17_clipreid_ViT-B-16_60.pth'
+#CUDA_VISIBLE_DEVICES=2 python test_clipreid.py --config_file configs/person/vit_clipreid.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/train_msmt17_cam12345/ViT-B-16_60.pth'
+#CUDA_VISIBLE_DEVICES=1 python tta_clipreid.py --config_file configs/person/vit_clipreid.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/CLIP-ReID/outputs/train_msmt17_cam12345/ViT-B-16_60.pth'
+#CUDA_VISIBLE_DEVICES=0 python train_clipreid.py --config_file configs/person/vit_clipreid.yml #TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/train_msmt17_stage0/ViT-B-16_stage1_120.pth'
+#CUDA_VISIBLE_DEVICES=2 python train_clipreid.py --config_file configs/person/vit_clipreid.yml OUTPUT_DIR '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/train_msmt17_camCE4'

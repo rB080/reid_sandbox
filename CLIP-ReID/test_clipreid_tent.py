@@ -1,14 +1,19 @@
 import os
+import os.path as osp
+from pathlib import Path
+import json
 import torch
 import torch.nn as nn
 from config import cfg
 import argparse
 from datasets.make_dataloader_clipreid import make_dataloader
 from model.make_model_clipreid import make_model
+#from model.make_model_clipreid_test import make_model
 from model.clipseg import CLIPDensePredT
-from processor.processor_clipreid_stage2 import do_inference, save_features, do_ttadapt
+from processor.processor_clipreid_stage2 import do_inference, save_features, do_tta_inference
 from utils.logger import setup_logger
-from tent.tent import *
+from tent.tdist2 import *
+
 
 
 if __name__ == "__main__":
@@ -42,24 +47,12 @@ if __name__ == "__main__":
 
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
-    train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    num_classes = 1041
+    train_loader, train_loader_normal, val_loader, gallery_loader, query_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg, qg_separate=True)
+    num_classes = 822
     #breakpoint()
-    #camera_num = 5
+    camera_num = 5
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
     model.load_param(cfg.TEST.WEIGHT)
-
-    # segmentor = CLIPDensePredT(version='ViT-B/16', reduce_dim=64)
-    # segmentor.eval()
-    # segmentor.load_state_dict(torch.load('/export/livia/home/vision/Rbhattacharya/work/clipseg/weights/clipseg_weights/rd64-uni.pth', map_location=torch.device('cpu')), strict=False)
-    segmentor = None
-    
-    model = configure_model(model)
-    params, param_names = collect_params(model)
-    #breakpoint()
-    optimizer = torch.optim.Adam(params=params, lr=0.001, weight_decay=1e-4)
-    tented_model = Tent(model, optimizer, steps=5, episodic=True)
-
     if cfg.DATASETS.NAMES == 'VehicleID':
         for trial in range(10):
             train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
@@ -79,10 +72,44 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, mAP, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}, sum_mAP {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0, all_mAP.sum()/10.0))
     else:
-       do_inference(cfg,
-                 tented_model,
-                 val_loader,
-                 num_query, segmentor=segmentor, path="/export/livia/home/vision/Rbhattacharya/work/CLIP-ReID/outputs/check_features")
+        feat_save_path = Path(cfg.TEST.WEIGHT).parent
+        override = False
+        # saving initial inference
+        #breakpoint()
+        if not (feat_save_path / "camids.pth").is_file() or override:
+            print("Saving initial inference results..")
+            do_inference(cfg,
+                    model,
+                    val_loader,
+                    num_query, segmentor=None, path=feat_save_path, suffix='new', compute_entropy=True)
+        
+        print("Loading data!")
+        output_dir = feat_save_path #"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/check_features" #
+        feature_type = "og"
+        pids = torch.load(osp.join(output_dir, "pids.pth"))
+        camids = torch.load(osp.join(output_dir, "camids.pth"))
+        with open(osp.join(output_dir, "imgpaths.json"), 'r') as f:
+            file_content = f.read()  # Read the entire content of the file as a string
+            imgpaths = json.loads(file_content) 
+        #print(imgpaths[0])
+        Q, G = torch.load(osp.join(output_dir, f"qf_{feature_type}.pth")), torch.load(osp.join(output_dir, f"gf_{feature_type}.pth"))
+        print("Loaded successfully!")
+        #breakpoint()
+        
+        model = configure_model(model)
+        params, param_names = collect_params(model)
+        #breakpoint()
+        #optimizer = torch.optim.Adam(params=params, lr=0.001, weight_decay=1e-4)
+        #tented_model = Tent(model, optimizer, steps=1, episodic=True)
+        tdisted_model = beta_TDIST(model, params, Q, G, camids, pids, steps=1, device='cuda', lr=0.00001, topk=5, episodic=False, lite=False)
+
+        do_tta_inference(cfg,
+                 tdisted_model,
+                 query_loader,
+                 num_query, segmentor=None, path=None, compute_entropy=False)
+        
+
+        
     #    do_inference_camidwise(cfg,
     #              model,
     #              val_loader,

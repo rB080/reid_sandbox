@@ -140,6 +140,7 @@ class build_transformer(nn.Module):
 
         dataset_name = cfg.DATASETS.NAMES
         self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        self.cam_prompt_learner = PromptLearner_background(camera_num, dataset_name, clip_model.dtype, clip_model.token_embedding)
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None, tta_module=None, tta=False, stage2=False):
@@ -199,7 +200,7 @@ class build_transformer(nn.Module):
                     return torch.cat([img_feature, img_feature_proj], dim=1)
                 else:
                     return torch.cat([img_feature, img_feature_proj], dim=1), [self.classifier(feat), self.classifier_proj(feat_proj)]
-                
+
     def TTA_forward(self, x):
         _, image_features, image_features_proj = self.image_encoder(x) 
         if self.model_name == 'RN50':
@@ -208,14 +209,19 @@ class build_transformer(nn.Module):
             img_feat = image_features_proj[:,0]
 
         labels = torch.tensor([i for i in range(self.num_classes)]).int().to(x.device)
+        cam_labels = torch.tensor([i for i in range(self.camera_num)]).int().to(x.device)
         prompts = self.prompt_learner(labels)
+        cam_prompts = self.cam_prompt_learner(cam_labels)
         text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
+        cam_text_features = self.text_encoder(cam_prompts, self.cam_prompt_learner.tokenized_prompts)
         IF = img_feat # / img_feat.norm(dim=-1, keepdim=True)
         TF = text_features # / text_features.norm(dim=-1, keepdim=True)
+        CTF = cam_text_features # / cam_text_features.norm(dim=-1, keepdim=True)
         similarity = ((IF @ TF.t())).softmax(dim=-1)
+        cam_similarity = ((IF @ CTF.t())).softmax(dim=-1)
         #breakpoint()
-        return torch.cat([image_features[:,0], img_feat], dim=1), similarity
-            
+        return torch.cat([image_features[:,0], img_feat], dim=1), similarity, cam_similarity
+
     def use_image_encoder(self, x):
         _, _, image_features_proj = self.image_encoder(x) 
         return image_features_proj[:,0]
@@ -299,6 +305,61 @@ class PromptLearner(nn.Module):
         self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
         self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
         self.num_class = num_class
+        self.n_cls_ctx = n_cls_ctx
+
+    def forward(self, label, stage2=False):
+        #breakpoint()
+        cls_ctx = self.cls_ctx[label] 
+        b = label.shape[0]
+        prefix = self.token_prefix.expand(b, -1, -1) 
+        suffix = self.token_suffix.expand(b, -1, -1) 
+            
+        prompts = torch.cat(
+            [
+                prefix,  # (n_cls, 1, dim)
+                cls_ctx,     # (n_cls, n_ctx, dim)
+                suffix,  # (n_cls, *, dim)
+            ],
+            dim=1,
+        ) 
+
+        return prompts 
+    
+class PromptLearner_background(nn.Module):
+    def __init__(self, num_cams, dataset_name, dtype, token_embedding):
+        super().__init__()
+        if dataset_name == "VehicleID" or dataset_name == "veri":
+            ctx_init = "A photo of a X X X X vehicle."
+            #ctx_init = "A surveillance image of a X X X X vehicle."
+        else:
+            ctx_init = "A photo in a X X X X background."
+            #ctx_init = "A photo of a X X X X person wearing Y Y Y Y clothes in a Z Z Z Z view."
+
+            #ctx_init = "A surveillance image of a X X X X vehicle."
+            # ctx_init = "A photo of a X X X X."
+        #breakpoint()
+        ctx_dim = 512
+        # use given words to initialize context vectors
+        ctx_init = ctx_init.replace("_", " ")
+        n_ctx = 4
+        
+        tokenized_prompts = clip.tokenize(ctx_init).cuda() 
+        with torch.no_grad():
+            embedding = token_embedding(tokenized_prompts).type(dtype) 
+        self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+
+        n_cls_ctx = 4
+        cls_vectors = torch.empty(num_cams, n_cls_ctx, ctx_dim, dtype=dtype) 
+        nn.init.normal_(cls_vectors, std=0.02)
+        self.cls_ctx = nn.Parameter(cls_vectors) 
+
+        
+        # These token vectors will be saved when in save_model(),
+        # but they should be ignored in load_model() as we want to use
+        # those computed using the current class names
+        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+        self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
+        self.num_cams = num_cams
         self.n_cls_ctx = n_cls_ctx
 
     def forward(self, label, stage2=False):

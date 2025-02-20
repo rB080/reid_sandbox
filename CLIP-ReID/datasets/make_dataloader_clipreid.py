@@ -118,11 +118,11 @@ def make_dataloader(cfg, qg_separate=False):
             collate_fn=val_collate_fn
         )
         gallery_loader = DataLoader(
-            gallery_set, batch_size=cfg.TEST.IMS_PER_BATCH, shuffle=True, num_workers=num_workers,
+            gallery_set, batch_size=cfg.TEST.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
             collate_fn=val_collate_fn
         )
         query_loader = DataLoader(
-            query_set, batch_size=cfg.TEST.IMS_PER_BATCH, shuffle=True, num_workers=num_workers,
+            query_set, batch_size=cfg.TEST.IMS_PER_BATCH, shuffle=False, num_workers=num_workers,
             collate_fn=val_collate_fn
         )
 

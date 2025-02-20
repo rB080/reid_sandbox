@@ -5,7 +5,7 @@ from utils.reranking import re_ranking
 from tqdm import tqdm
 
 
-def euclidean_distance(qf, gf, modified=False):
+def euclidean_distance(qf, gf, modified=False, return_tensor=False):
     if modified:
         qf = qf.unsqueeze(0)
     m = qf.shape[0]
@@ -14,7 +14,9 @@ def euclidean_distance(qf, gf, modified=False):
     dist_mat = torch.pow(qf, 2).sum(dim=1, keepdim=True).expand(m, n) + \
                torch.pow(gf, 2).sum(dim=1, keepdim=True).expand(n, m).t()
     dist_mat.addmm_(1, -2, qf, gf.t())
-    return dist_mat.cpu().numpy()
+    if return_tensor:
+        return dist_mat
+    return dist_mat.detach().cpu().numpy()
 
 def euclidean_distance_with_descriptors(qf, gf, textfeats, pids):
     m = qf.shape[0]
@@ -111,6 +113,7 @@ def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_
     indices = np.argsort(distmat, axis=1)
     #  0 2 1 3
     #  1 2 3 0
+    #breakpoint()
     matches = (g_pids[indices] == q_pids[:, np.newaxis]).astype(np.int32)
     # compute cmc curve for each query
     all_cmc = []

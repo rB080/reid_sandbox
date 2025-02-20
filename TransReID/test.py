@@ -43,14 +43,14 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    num_classes = 702
+    num_classes = 1041
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
     model.load_param(cfg.TEST.WEIGHT)
 
-    segmentor = CLIPDensePredT(version='ViT-B/16', reduce_dim=64)
-    segmentor.eval()
-    segmentor.load_state_dict(torch.load('/export/livia/home/vision/Rbhattacharya/work/clipseg/weights/clipseg_weights/rd64-uni.pth', map_location=torch.device('cuda')), strict=False)
-    # segmentor = None
+    #segmentor = CLIPDensePredT(version='ViT-B/16', reduce_dim=64)
+    #segmentor.eval()
+    #segmentor.load_state_dict(torch.load('/export/livia/home/vision/Rbhattacharya/work/clipseg/weights/clipseg_weights/rd64-uni.pth', map_location=torch.device('cuda')), strict=False)
+    segmentor = None
 
     if cfg.DATASETS.NAMES == 'VehicleID':
         for trial in range(10):
@@ -69,10 +69,12 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0))
     else:
+       feat_save_path = "/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/testing_msmt17_market1501"
+       if feat_save_path is not None: os.makedirs(feat_save_path, exist_ok=True)
        do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, segmentor=None, path="/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs/train_msmt17_cam12345")
+                 num_query, segmentor=None, path=feat_save_path, camera_normalize=False)
     #    do_inference_camidwise(cfg,
     #              model,
     #              val_loader,

@@ -87,7 +87,7 @@ def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_
     all_cmc = np.asarray(all_cmc).astype(np.float32)
     all_cmc = all_cmc.sum(0) / num_valid_q
     mAP = np.mean(all_AP)
-    print("CAM, mAP, R1, R5, R10: ", exclude_cam, mAP, all_cmc[0], all_cmc[4], all_cmc[9])
+    #print("CAM, mAP, R1, R5, R10: ", exclude_cam, mAP, all_cmc[0], all_cmc[4], all_cmc[9])
     return all_cmc, mAP
 
 
@@ -111,7 +111,8 @@ class R1_mAP_eval():
         self.camids.extend(np.asarray(camid))
 
     def compute(self):  # called after each epoch
-        feats = torch.cat(self.feats, dim=0)
+        if not torch.is_tensor(self.feats): feats = torch.cat(self.feats, dim=0)
+        else: feats = self.feats
         if self.feat_norm:
             print("The test feature is normalized")
             feats = torch.nn.functional.normalize(feats, dim=1, p=2)  # along channel

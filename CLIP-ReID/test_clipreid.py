@@ -5,6 +5,7 @@ from config import cfg
 import argparse
 from datasets.make_dataloader_clipreid import make_dataloader
 from model.make_model_clipreid import make_model
+#from model.make_model_clipreid_test import make_model
 from model.clipseg import CLIPDensePredT
 from processor.processor_clipreid_stage2 import do_inference
 from utils.logger import setup_logger
@@ -42,7 +43,8 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    num_classes = 1041
+    num_classes = 822
+    camera_num = 5 
     #breakpoint()
     #camera_num = 5
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
@@ -73,10 +75,12 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, mAP, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}, sum_mAP {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0, all_mAP.sum()/10.0))
     else:
+        feat_save_path = None #"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/train_msmt17_cam12345/saved/"
+        if feat_save_path is not None: os.makedirs(feat_save_path, exist_ok=True)
         do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, camera_normalize=True)#, segmentor=segmentor, path="/export/livia/home/vision/Rbhattacharya/work/CLIP-ReID/outputs/check_features")
+                 num_query, segmentor=segmentor, path=feat_save_path, suffix='og', camera_normalize=True)
     #    do_inference_camidwise(cfg,
     #              model,
     #              val_loader,

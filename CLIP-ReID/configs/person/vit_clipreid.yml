@@ -69,8 +69,8 @@ TEST:
 
 DATASETS:
 #   NAMES: ('market1501')
-#   ROOT_DIR: ('')
-# OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/CLIP-ReID/outputs'
+#   ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data/market1501')
+# OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/reid_sandbox/CLIP-ReID/outputs/train_msmt17_camCE'
 
 #   NAMES: ('dukemtmc')
 #   ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data')
@@ -82,6 +82,6 @@ DATASETS:
 
   NAMES: ('msmt17')
   ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data/msmt17')
-OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/CLIP-ReID/outputs/train_msmt17_multiple3'
+OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/train_msmt17_camCE'
 
 # CUDA_VISIBLE_DEVICES=3 python train_clipreid.py --config_file configs/person/vit_clipreid.yml

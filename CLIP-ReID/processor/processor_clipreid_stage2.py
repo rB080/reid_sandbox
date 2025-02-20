@@ -12,6 +12,8 @@ from loss.supcontrast import SupConLoss
 from tqdm import tqdm
 import json
 from torchvision.utils import save_image
+from model.make_model_clipreid import *
+from loss.softmax_loss import CrossEntropyLabelSmooth
 
 def do_train_stage2(cfg,
              model,
@@ -49,6 +51,7 @@ def do_train_stage2(cfg,
     evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)
     scaler = amp.GradScaler()
     xent = SupConLoss(device)
+    xent_cam = CrossEntropyLabelSmooth(num_classes=15) #Hardcoded for MSMT17
     
     # train
     import time
@@ -62,6 +65,7 @@ def do_train_stage2(cfg,
     if left != 0 :
         i_ter = i_ter+1
     text_features = []
+    cam_text_features = []
     with torch.no_grad():
         for i in range(i_ter):
             if i+1 != i_ter:
@@ -73,6 +77,14 @@ def do_train_stage2(cfg,
                 #_, _, text_feature = model(x = img, label = target, cam_label=target_cam, view_label=target_view)
             text_features.append(text_feature.cpu())
         text_features = torch.cat(text_features, 0).cuda()
+        # if hasattr(model, "cam_prompt_learner") and isinstance(getattr(model, "cam_prompt_learner"), PromptLearner_background):
+        #     with amp.autocast(enabled=True):
+        #         l_list = torch.arange(0, 15) # Hard coded for MSMT17...needs to be generalized or changed for other datasets
+        #         camprompts = model.cam_prompt_learner(l_list, stage2=False) 
+        #         cam_text_features = model.text_encoder(camprompts, model.cam_prompt_learner.tokenized_prompts)
+        # else:
+        #     cam_text_features = None
+        cam_text_features = None
 
     for epoch in range(1, epochs + 1):
         start_time = time.time()
@@ -88,6 +100,7 @@ def do_train_stage2(cfg,
             optimizer_center.zero_grad()
             img = img.to(device)
             target = vid.to(device)
+            camid = target_cam.to(device)
             if cfg.MODEL.SIE_CAMERA:
                 target_cam = target_cam.to(device)
             else: 
@@ -99,11 +112,15 @@ def do_train_stage2(cfg,
             with amp.autocast(enabled=True):
                 score, feat, image_features = model(x = img, label = target, cam_label=target_cam, view_label=target_view)
                 logits = image_features @ text_features.t()
+                if cam_text_features is not None:
+                    cam_logits = image_features @ cam_text_features.t()
                 #breakpoint()
                 #logits = model.logit_head(image_features) 
                 #breakpoint()
                 #logits = image_features @ image_features.t()  #takes on img feat
                 loss = loss_fn(score, feat, target, target_cam, logits)
+                if cam_text_features is not None:
+                    loss += 1.0 / xent_cam(cam_logits, camid)
 
             scaler.scale(loss).backward()
 
@@ -198,13 +215,13 @@ def do_train_stage2(cfg,
 def do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, segmentor=None, path=None, save_sample=False, camera_normalize=False):
+                 num_query, segmentor=None, path=None, suffix='og', save_sample=False, camera_normalize=False, compute_entropy=False):
     # breakpoint()
     device = "cuda"
     logger = logging.getLogger("transreid.test")
     logger.info("Enter inferencing")
 
-    evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)
+    evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=False)#cfg.TEST.FEAT_NORM)
 
     evaluator.reset()
 
@@ -219,8 +236,10 @@ def do_inference(cfg,
     
     img_path_list = []
     cam_dict = {}
-
-    for n_iter, (img, seg_img, pid, camid, camids, target_view, imgpath) in tqdm(enumerate(val_loader), total=len(val_loader)):
+    entropies = []
+    cam_entropies = []
+    iterator = tqdm(enumerate(val_loader), total=len(val_loader))
+    for n_iter, (img, seg_img, pid, camid, camids, target_view, imgpath) in iterator:
         with torch.no_grad():
             #breakpoint()
             img = img.to(device)
@@ -249,7 +268,23 @@ def do_inference(cfg,
             # feat = model(x=img, text=None, batch_size=img.shape[0])
             # feat = torch.matmul(feat, featt.T)
             # feat = model(text="A photo of a person", batch_size=img.shape[0]) 
-            feat = model(img, cam_label=camids, view_label=target_view)
+            if not compute_entropy: feat = model(img, cam_label=camids, view_label=target_view)
+            else:
+                #breakpoint()
+                if hasattr(model, "cam_prompt_learner"):
+                    #breakpoint()
+                    feat, sim, camsim = model.TTA_forward(img)
+                    cam_entropy = -(camsim * torch.log(camsim)).sum(dim=1)
+                    cam_entropies.extend(cam_entropy.detach().cpu())
+                else:
+                    feat, sim = model.TTA_forward(img)
+                entropy = -(sim * torch.log(sim)).sum(dim=1)
+                entropies.extend(entropy.detach().cpu())
+                if hasattr(model, "cam_prompt_learner"):
+                    iterator.set_description(f"Entropy: {torch.vstack(entropies).mean().item():.3f}, Camentropy: {torch.vstack(cam_entropies).mean().item():.3f}")
+                else:
+                    iterator.set_description(f"Entropy: {torch.vstack(entropies).mean().item():.3f}")
+
             if camera_normalize:
                 for cid in camid:
                     if cid in list(cam_dict.keys()):
@@ -282,6 +317,111 @@ def do_inference(cfg,
 
     cmc, mAP, distmat, pids, camids, qf, gf = evaluator.compute()
     if path is not None:
+        torch.save(distmat, f"{path}/distmat_{suffix}.pth", pickle_protocol=4)
+        torch.save(qf, f"{path}/qf_{suffix}.pth", pickle_protocol=4)
+        torch.save(gf, f"{path}/gf_{suffix}.pth", pickle_protocol=4)
+        with open(f"{path}/imgpaths.json", 'w') as f:
+            f.write(json.dumps(img_path_list))
+        torch.save(pids, f"{path}/pids.pth", pickle_protocol=4)
+        torch.save(camids, f"{path}/camids.pth", pickle_protocol=4)
+
+
+    if compute_entropy:
+        E_mean = torch.stack(entropies).mean()
+        E_std = torch.stack(entropies).std()
+        logger.info("Entropy mean: {:.3f}, Entropy std: {:.3f}".format(E_mean, E_std))
+        if hasattr(model, "cam_prompt_learner"):
+            E_mean = torch.stack(cam_entropies).mean()
+            E_std = torch.stack(cam_entropies).std()
+            logger.info("Cam Entropy mean: {:.3f}, Cam Entropy std: {:.3f}".format(E_mean, E_std))
+    logger.info("Validation Results ")
+    logger.info("mAP: {:.1%}".format(mAP))
+    for r in [1, 5, 10]:
+        logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
+    return cmc[0], cmc[4]
+
+def do_tta_inference(cfg,
+                 model,
+                 val_loader,
+                 num_query, segmentor=None, path=None, save_sample=False, camera_normalize=False, compute_entropy=False):
+    # breakpoint()
+    device = "cuda"
+    logger = logging.getLogger("transreid.test")
+    logger.info("Enter inferencing")
+
+    evaluator = R1_mAP_eval(num_query, max_rank=50, feat_norm=False)#cfg.TEST.FEAT_NORM)
+    evaluator.reset()
+    query_feats = []
+    gallery_feats = []
+
+    if device:
+        if torch.cuda.device_count() > 1:
+            print('Using {} GPUs for inference'.format(torch.cuda.device_count()))
+            model = nn.DataParallel(model)
+        model.to(device)
+        if segmentor is not None: segmentor.to(device)
+
+    model.eval()
+    
+    img_path_list = []
+    cam_dict = {}
+    entropies = []
+
+    for n_iter, (img, seg_img, pid, camid, camids, target_view, imgpath) in tqdm(enumerate(val_loader), total=len(val_loader)):
+        with torch.no_grad():
+            #breakpoint()
+            img = img.to(device)
+            if segmentor is not None:
+                #breakpoint()
+                seg_img.to(device)
+                prompt = ["the person in the image"] * seg_img.shape[0]
+                mask = segmentor(seg_img, prompt)[0]
+                mask = F.interpolate(mask, (img.shape[2], img.shape[3]))
+                mask = torch.sigmoid(mask)
+                #breakpoint()
+                threshold = 0.5
+                mask[mask >= threshold] = 1.0
+                mask[mask < threshold] = 0.0
+                img = img #* (1.0 - mask)
+                
+            if cfg.MODEL.SIE_CAMERA:
+                camids = camids.to(device)
+            else: 
+                camids = None
+            if cfg.MODEL.SIE_VIEW:
+                target_view = target_view.to(device)
+            else: 
+                target_view = None
+            #breakpoint()
+            # feat = model(x=img, text=None, batch_size=img.shape[0])
+            # feat = torch.matmul(feat, featt.T)
+            # feat = model(text="A photo of a person", batch_size=img.shape[0]) 
+            #print(imgpath[0])
+            if not compute_entropy: feat, gfeat = model(img, cam_label=camid, view_label=target_view)
+            else:
+                feat, gfeat = model(img, cam_label=camid, view_label=target_view)
+                #breakpoint()
+                _, logits = model.model.TTA_forward(img)
+                entropy = -(F.softmax(logits, dim=1) * F.log_softmax(logits, dim=1)).sum(dim=1)
+                entropies.extend(entropy.detach().cpu())
+            query_feats.append(feat.cpu())
+            gallery_feats = gfeat.cpu()
+
+            # breakpoint()
+            #evaluator.update((feat, pid, camid))
+            img_path_list.extend(imgpath)
+            if save_sample:
+                img_new = img.detach().cpu()
+                img1 = img_new[0]
+                save_image(img1, os.path.join(path, "sample.png"))
+    
+    query_feats = torch.cat(query_feats, dim=0)
+    feats = torch.cat([query_feats, gallery_feats], dim=0)
+    evaluator.feats = feats
+    evaluator.pids = model.pids
+    evaluator.camids = model.camids
+    cmc, mAP, distmat, pids, camids, qf, gf = evaluator.compute()
+    if path is not None:
         torch.save(distmat, f"{path}/distmat_tent2.pth", pickle_protocol=4)
         torch.save(qf, f"{path}/qf_tent2.pth", pickle_protocol=4)
         torch.save(gf, f"{path}/gf_tent2.pth", pickle_protocol=4)
@@ -290,13 +430,15 @@ def do_inference(cfg,
         torch.save(pids, f"{path}/pids.pth", pickle_protocol=4)
         torch.save(camids, f"{path}/camids.pth", pickle_protocol=4)
 
-
+    if compute_entropy:
+        E_mean = torch.stack(entropies).mean()
+        E_std = torch.stack(entropies).std()
+        logger.info("Entropy mean: {:.3f}, Entropy std: {:.3f}".format(E_mean, E_std))
     logger.info("Validation Results ")
     logger.info("mAP: {:.1%}".format(mAP))
     for r in [1, 5, 10]:
         logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
     return cmc[0], cmc[4]
-
 
 # def do_inference_camidwise(cfg,
 #                  model,

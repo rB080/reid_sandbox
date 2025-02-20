@@ -1,6 +1,6 @@
 MODEL:
   PRETRAIN_CHOICE: 'imagenet'
-  PRETRAIN_PATH: '/export/livia/home/vision/Rbhattacharya/work/TransReID/pretrained/jx_vit_base_p16_224-80ecf9dd.pth'
+  PRETRAIN_PATH: '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/pretrained/jx_vit_base_p16_224-80ecf9dd.pth'
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
@@ -20,9 +20,9 @@ INPUT:
   PIXEL_STD: [0.5, 0.5, 0.5]
 
 DATASETS:
-  #   NAMES: ('market1501')
-#   ROOT_DIR: ('')
-# OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs'
+  NAMES: ('market1501')
+  ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data/market1501')
+OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/testing_msmt17_market1501'
 
 #   NAMES: ('dukemtmc')
 #   ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data')
@@ -32,9 +32,9 @@ DATASETS:
 #   ROOT_DIR: ('')
 # OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs'
 
-  NAMES: ('msmt17')
-  ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data/msmt17')
-OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs/train_msmt17_cam10'
+#   NAMES: ('msmt17')
+#   ROOT_DIR: ('/export/livia/home/vision/Rbhattacharya/work/data/data/msmt17')
+# OUTPUT_DIR: '/export/livia/home/vision/Rbhattacharya/work/TransReID/outputs/train_msmt17_cam10'
 
 DATALOADER:
   SAMPLER: 'softmax_triplet'

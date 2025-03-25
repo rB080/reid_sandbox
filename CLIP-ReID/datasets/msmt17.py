@@ -54,6 +54,8 @@ class MSMT17(BaseImageDataset):
         #self.query = self.remove_camid(self.query, [11, 12, 13], keep_only=True)
         #self.gallery = self.remove_camid(self.gallery, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14], keep_only=True)
         # self.train = self.remove_camid(self.train, [1, 2, 3, 4, 5,], keep_only=True)
+        self.query = self.remove_camid(self.query, [1, 2, 3, 4, 5, 14], keep_only=True)
+        self.gallery = self.remove_camid(self.gallery, [1, 2, 3, 4, 5], keep_only=True)
         #self.train = self.reduce_train_data(self.train)
         #self.query = self.remove_camid(self.train, [0], keep_only=True)
         #self.train = self.remove_camid(self.train, [11, 12, 13], keep_only=True)
@@ -66,25 +68,34 @@ class MSMT17(BaseImageDataset):
         self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_cams, self.num_gallery_vids = self.get_imagedata_info(self.gallery)
         #breakpoint()
     
-    def remove_camid(self, dataset, camids, keep_only=False):
+    def remove_camid(self, dataset, camids, keep_only=False, unique_pids=False):
+        camids = list(set(camids))
         new_dataset = []
-        pids = set()
+        if unique_pids:
+            pids = set()
+        else: pids = []
         for d in tqdm(dataset, total=len(dataset), desc="Trimming dataset"):
             
             #breakpoint()
             cid = d[2]
             if keep_only:
                 if cid in camids: 
-                    pids.add(d[1])
+                    if unique_pids: pids.add(d[1])
+                    else: pids.append(d[1])
                     new_dataset.append(d)
             else:
                 if cid not in camids: 
-                    pids.add(d[1])
+                    if unique_pids: pids.add(d[1])
+                    else: pids.append(d[1])
                     new_dataset.append(d)
 
-        pids = list(pids)
-        for idx in range(len(new_dataset)):
-            new_dataset[idx] = (new_dataset[idx][0], pids.index(new_dataset[idx][1]), new_dataset[idx][2], new_dataset[idx][3])
+        if unique_pids:
+            pids = list(pids)
+            for idx in range(len(new_dataset)):
+                new_dataset[idx] = (new_dataset[idx][0], pids.index(new_dataset[idx][1]), new_dataset[idx][2], new_dataset[idx][3])
+        else: 
+            for idx in range(len(new_dataset)):
+                new_dataset[idx] = (new_dataset[idx][0], new_dataset[idx][1], new_dataset[idx][2], new_dataset[idx][3])
 
         return new_dataset
     

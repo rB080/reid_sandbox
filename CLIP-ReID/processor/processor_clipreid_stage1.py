@@ -81,10 +81,12 @@ def do_train_stage1(cfg,
             camid = cams_list[b_list]
             image_features = image_features_list[b_list]
             with amp.autocast(enabled=True):
-                text_features = model(label = target, get_text = True)
+                # text_features = model(label = target, get_text = True) 
+                text_features = model(label = (target, camid), get_text = True) #remove tuple
                 if hasattr(model, "cam_prompt_learner") and isinstance(getattr(model, "cam_prompt_learner"), PromptLearner_background):
-                    camprompts = model.cam_prompt_learner(camid, stage2=False) 
-                    cam_text_features = model.text_encoder(camprompts, model.cam_prompt_learner.tokenized_prompts)
+                    #camprompts = model.cam_prompt_learner(camid, stage2=False) 
+                    #cam_text_features = model.text_encoder(camprompts, model.cam_prompt_learner.tokenized_prompts)
+                    cam_text_features = text_features
                 else: cam_text_features = None
             #if i == i_ter: breakpoint()
             loss_i2t = xent(image_features, text_features, target, target)
@@ -107,9 +109,14 @@ def do_train_stage1(cfg,
 
             torch.cuda.synchronize()
             if (i + 1) % log_period == 0:
-                logger.info("Epoch[{}] Iteration[{}/{}] Loss: {:.3f}, camloss: {:.3f} Base Lr: {:.2e}"
+                if cam_loss != "N/A":
+                    logger.info("Epoch[{}] Iteration[{}/{}] Loss: {:.3f}, camloss: {:.3f}, Base Lr: {:.2e}"
                             .format(epoch, (i + 1), len(train_loader_stage1),
                                     loss_meter.avg, cam_loss.item(), scheduler._get_lr(epoch)[0]))
+                else: 
+                    logger.info("Epoch[{}] Iteration[{}/{}] Loss: {:.3f}, camloss: {}, Base Lr: {:.2e}"
+                            .format(epoch, (i + 1), len(train_loader_stage1),
+                                    loss_meter.avg, cam_loss, scheduler._get_lr(epoch)[0]))
 
         if epoch % checkpoint_period == 0:
             if cfg.MODEL.DIST_TRAIN:

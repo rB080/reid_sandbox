@@ -4,7 +4,8 @@ import torch.nn as nn
 from config import cfg
 import argparse
 from datasets.make_dataloader_clipreid import make_dataloader
-from model.make_model_clipreid import make_model, PromptLearner, TestTimeAdapter, load_clip_to_cpu
+#from model.make_model_clipreid import make_model, PromptLearner, TestTimeAdapter, load_clip_to_cpu
+from model.make_model_clipreid_test import make_model, PromptLearner, TestTimeAdapter, load_clip_to_cpu
 from model.clipseg import CLIPDensePredT
 from processor.processor_clipreid_TTA import do_inference, do_ttadapt_1, do_ttadapt_2, do_ttadapt_3
 from utils.logger import setup_logger

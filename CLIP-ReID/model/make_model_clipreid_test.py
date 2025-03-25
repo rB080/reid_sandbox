@@ -139,15 +139,22 @@ class build_transformer(nn.Module):
             print('camera number is : {}'.format(view_num))
 
         dataset_name = cfg.DATASETS.NAMES
-        self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        self.prompt_learner = PromptLearner2(num_classes, camera_num, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        self.prompt_learner_og = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
         self.cam_prompt_learner = PromptLearner_background(camera_num, dataset_name, clip_model.dtype, clip_model.token_embedding)
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None, tta_module=None, tta=False, stage2=False):
         #breakpoint()
         if get_text == True:
-            prompts = self.prompt_learner(label, stage2=stage2) 
-            text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
+            #prompts = self.prompt_learner(label, stage2=stage2) 
+            if not stage2:
+                prompts = self.prompt_learner(label[0], label[1], stage2=stage2)
+                text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
+            else:
+                self.prompt_learner_og.cls_ctx = self.prompt_learner.cls_ctx
+                prompts = self.prompt_learner_og(label, stage2=stage2)
+                text_features = self.text_encoder(prompts, self.prompt_learner_og.tokenized_prompts)
             return text_features
 
         if get_image == True:
@@ -382,14 +389,14 @@ class PromptLearner_background(nn.Module):
 
 
 class PromptLearner2(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, token_embedding):
+    def __init__(self, num_class, num_cams, dataset_name, dtype, token_embedding):
         super().__init__()
         if dataset_name == "VehicleID" or dataset_name == "veri":
             ctx_init = "A photo of a X X X X vehicle."
             #ctx_init = "A surveillance image of a X X X X vehicle."
         else:
             # ctx_init = "A photo of a X X X X person."
-            ctx_init = "A photo of a X X X X person wearing Y Y Y Y clothes in a Z Z Z Z view."
+            ctx_init = "A photo of a X X X X person in a Y Y Y Y background."
 
             #ctx_init = "A surveillance image of a X X X X vehicle."
             # ctx_init = "A photo of a X X X X."
@@ -408,63 +415,49 @@ class PromptLearner2(nn.Module):
         cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors) 
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        cls_vectors = torch.empty(num_cams, n_cls_ctx, ctx_dim, dtype=dtype) 
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx2 = nn.Parameter(cls_vectors) 
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
-        nn.init.normal_(cls_vectors, std=0.02)
-        self.cls_ctx3 = nn.Parameter(cls_vectors) 
+        # cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        # nn.init.normal_(cls_vectors, std=0.02)
+        # self.cls_ctx3 = nn.Parameter(cls_vectors) 
 
         # These token vectors will be saved when in save_model(),
         # but they should be ignored in load_model() as we want to use
         # those computed using the current class names
         self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
         self.register_buffer("token_suffix_1", embedding[:, n_ctx + 1 + n_cls_ctx:n_ctx + 3 + n_cls_ctx , :])  
-        self.register_buffer("token_suffix_2", embedding[:, n_ctx + 3 + 2*n_cls_ctx:n_ctx + 6 + 2*n_cls_ctx , :])  
-        self.register_buffer("token_suffix", embedding[:, n_ctx + 6 + 3*n_cls_ctx: , :])  
+        #self.register_buffer("token_suffix_2", embedding[:, n_ctx + 3 + 2*n_cls_ctx:n_ctx + 6 + 2*n_cls_ctx , :])  
+        self.register_buffer("token_suffix", embedding[:, n_ctx + 3 + 2*n_cls_ctx: , :])  
         # breakpoint()
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
 
-    def forward(self, label, stage2=False):
+    def forward(self, label, cam_label, stage2=False):
         #breakpoint()
         cls_ctx = self.cls_ctx[label] 
-        cls_ctx2 = self.cls_ctx2[label] 
-        cls_ctx3 = self.cls_ctx3[label] 
+        cls_ctx2 = self.cls_ctx2[cam_label] 
+        #cls_ctx3 = self.cls_ctx3[label] 
         b = label.shape[0]
         prefix = self.token_prefix.expand(b, -1, -1) 
         suffix = self.token_suffix.expand(b, -1, -1) 
         suffix_1 = self.token_suffix_1.expand(b, -1, -1) 
-        suffix_2 = self.token_suffix_2.expand(b, -1, -1) 
+        #suffix_2 = self.token_suffix_2.expand(b, -1, -1) 
 
-        if not stage2 :
-            prompts = torch.cat(
-                [
-                    prefix,  # (n_cls, 1, dim)
-                    cls_ctx, # (n_cls, n_ctx, dim)
-                    suffix_1,
-                    cls_ctx2,
-                    suffix_2,
-                    cls_ctx3,
-                    suffix  # (n_cls, *, dim)
-                ],
-                dim=1,
-            ) 
-        else:
-            prompts = torch.cat(
-                [
-                    prefix,  # (n_cls, 1, dim)
-                    cls_ctx, # (n_cls, n_ctx, dim)
-                    suffix_1[:, :1, :],
-                    suffix_2[:, 1:, :],
-                    cls_ctx3,
-                    suffix[:, :, :],  # (n_cls, *, dim)
-                    suffix[:, -6:, :]
-                ],
-                dim=1,
-            ) 
+        prompts = torch.cat(
+            [
+                prefix,  # (n_cls, 1, dim)
+                cls_ctx, # (n_cls, n_ctx, dim)
+                suffix_1,
+                cls_ctx2,
+                #suffix_2,
+                #cls_ctx3,
+                suffix  # (n_cls, *, dim)
+            ],
+            dim=1,
+        )
 
-        return prompts 
+        return prompts
 
 class TestTimeAdapter(nn.Module):
     def __init__(self, dtype, token_embedding, num_classes=3060, dims=1280):

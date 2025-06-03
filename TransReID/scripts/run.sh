@@ -1,2 +1,3 @@
-# CUDA_VISIBLE_DEVICES=1 python train.py --config_file configs/transformer_base.yml
-CUDA_VISIBLE_DEVICES=1 python test.py --config_file configs/transformer_base.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/train1/transformer_120.pth'
+CUDA_VISIBLE_DEVICES=1 python train.py --config_file ./configs/MSMT17/vit_transreid_stride.yml OUTPUT_DIR '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/msmt10_upper_bound/'
+
+# CUDA_VISIBLE_DEVICES=1 python test.py --config_file ./configs/Market/vit_transreid_stride.yml TEST.WEIGHT '/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/downloaded_models/vit_transreid_market.pth'

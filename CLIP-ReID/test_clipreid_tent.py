@@ -10,14 +10,18 @@ from datasets.make_dataloader_clipreid import make_dataloader
 from model.make_model_clipreid import make_model
 #from model.make_model_clipreid_test import make_model
 from model.clipseg import CLIPDensePredT
-from processor.processor_clipreid_stage2 import do_inference, save_features, do_tta_inference, do_tta_inference_check_ranges
+from processor.processor_clipreid_stage2 import *
 from utils.logger import setup_logger
 from tent.tdist2 import *
+from tent.tdist3 import *
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
+    parser.add_argument("--mode", help="Inference mode", default='ours', type=str)
+    parser.add_argument("--lite", help="Lite mode", default=False, type=bool)
+    parser.add_argument("--ep", help="Inference mode", default='NE', type=str)
     parser.add_argument(
         "--config_file", default="configs/person/vit_clipreid.yml", help="path to config file", type=str
     )
@@ -25,6 +29,7 @@ if __name__ == "__main__":
                         nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
+    assert args.ep in ['NE', 'E'], f"TTA can be only episodic (E) or non-episodic (NE), got {args.ep}"
 
     if args.config_file != "":
         cfg.merge_from_file(args.config_file)
@@ -48,7 +53,13 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, gallery_loader, query_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg, qg_separate=True)
-    num_classes = 1041 #822
+    num_classes = 822 #751 #822
+    # if "MSMT" in cfg.TEST.WEIGHT:
+    #     num_classes = 1041
+    # elif "Duke" in cfg.TEST.WEIGHT:
+    #     num_classes = 702
+    # elif "Market" in cfg.TEST.WEIGHT:
+    #     num_classes = 751
     #breakpoint()
     #camera_num = 15
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
@@ -76,7 +87,7 @@ if __name__ == "__main__":
         # override = False
         # # saving initial inference
         # #breakpoint()
-        # if not (feat_save_path / "camids.pth").is_file() or override:
+        #            tta_args, num_query, segmentor=None, suffix=fid14, 
         #     print("Saving initial inference results..")
         #     do_inference(cfg,
         #             model,
@@ -96,62 +107,83 @@ if __name__ == "__main__":
         # print("Loaded successfully!")
         #breakpoint()
         
-        feat_save_path = None #"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/diagnosis2/"
+        feat_save_path = None #f"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/final_umap/{args.mode}"
         if feat_save_path is not None: os.makedirs(feat_save_path, exist_ok=True)
 
         tta_args = {
-            'steps': 1,
+            'steps': 2,
             'device': 'cuda',
-            'lr': 0.0001,
-            'topk': 10,
-            'temp': 600.0,
-            'episodic': False,
-            'lite': False,
+            'lr': 0.00005,
+            'topk': 20 if args.mode == 'ours' else 50,
+            'temp': 200.0,
+            'episodic': args.ep=='E',
+            'lite': args.lite,
             'use_norm': True
         }
 
-        # do_tta_inference(cfg,
-        #          model,
-        #          query_loader,
-        #          gallery_loader,
-        #          tta_args, num_query, segmentor=None, suffix=f"id14", 
-        #          path=feat_save_path, compute_entropy=False, new_query=True, single_query=None)
-        
-        ##################################### ABLATION STUDIES ########################################
 
-        lr_range = [0.00005, 0.0001, 0.0005, 0.001]#, 0.005, 0.01]
-        k_range = [1, 5, 10, 20, 50, 100, 200, 500]
-        temp_range = [100.0, 600.0, 1000.0, 2000.0]
-        step_range = [1, 2, 5, 10, 20]
-
-        iterative_args = []
-        for lr in lr_range:
-            for k in k_range:
-                for temp in temp_range:
-                    for step in step_range:
-                        iterative_args.append({
-                            'steps': step,
-                            'device': 'cuda',
-                            'lr': lr,
-                            'topk': k,
-                            'temp': temp,
-                            'episodic': True,
-                            'lite': False,
-                            'use_norm': True
-                        })
-        
-
-
-        do_tta_inference_check_ranges(cfg,
+        if not tta_args['lite']:
+            print("Running in Normal mode!")
+            do_tta_inference(cfg,
+                    model,
+                    query_loader,
+                    gallery_loader,
+                    tta_args, num_query, segmentor=None, suffix='id14', 
+                    path=feat_save_path, compute_entropy=False, new_query=True, single_query=None, mode=args.mode)
+        else:
+            print("Running in LITE mode!")
+            do_tta_inference_lite(cfg,
                  model,
                  query_loader,
                  gallery_loader,
-                 iterative_args, num_query, segmentor=None, suffix=f"id14", 
+                 tta_args, num_query, segmentor=None, suffix=f"id14", 
                  path=feat_save_path, compute_entropy=False, new_query=True, single_query=None)
+        ##################################### ABLATION STUDIES ########################################
+
+        # lr_range = [0.00005, 0.0001, 0.0005, 0.001]#, 0.005, 0.01]
+        # lr_range = [0.00005] #, 0.0001]#, 0.005, 0.01]
+        # k_range = [1, 2, 5, 10, 20, 50, 100] #[1, 5, 10, 20, 50, 100, 200, 500]
+        # temp_range = [100.0, 600.0, 1000.0, 2000.0]
+        # step_range = [1, 2, 5, 10, 20]
+
+        # iterative_args = []
+        # for lr in lr_range:
+        #     for k in k_range:
+        #         for temp in temp_range:
+        #             for step in step_range:
+        #                 iterative_args.append({
+        #                     'steps': step,
+        #                     'device': 'cuda',
+        #                     'lr': lr,
+        #                     'topk': k,
+        #                     'temp': temp,
+        #                     'episodic': args.ep=='E',
+        #                     'lite': False,
+        #                     'use_norm': True
+        #                 })
+        
+
+        # if not args.lite:
+        #     do_tta_inference_check_ranges(cfg,
+        #             model,
+        #             query_loader,
+        #             gallery_loader,
+        #             iterative_args, num_query, segmentor=None, suffix=f"id14", 
+        #             path=feat_save_path, compute_entropy=False, new_query=True, single_query=None, mode=args.mode)
+        # else:
+        #     do_tta_lite_inference_check_ranges(cfg,
+        #             model,
+        #             query_loader,
+        #             gallery_loader,
+        #             iterative_args, num_query, segmentor=None, suffix=f"id14", 
+        #             path=feat_save_path, compute_entropy=False, new_query=True, single_query=None, mode=args.mode)
+        
         
         ##################################### ABLATION STUDIES ########################################
         ##################################### LITE MODE STUDIES ########################################
-
+        # Process:
+        # Alter processor script to accomodate LITE mode run...
+        
         ##################################### LITE MODE STUDIES ########################################
         
     #    do_inference_camidwise(cfg,

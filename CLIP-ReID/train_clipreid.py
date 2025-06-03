@@ -1,7 +1,7 @@
 from utils.logger import setup_logger
 from datasets.make_dataloader_clipreid import make_dataloader
-#from model.make_model_clipreid import make_model
-from model.make_model_clipreid_test import make_model
+from model.make_model_clipreid import make_model
+#from model.make_model_clipreid_test import make_model
 from solver.make_optimizer_prompt import make_optimizer_1stage, make_optimizer_2stage
 from solver.scheduler_factory import create_scheduler
 from solver.lr_scheduler import WarmupMultiStepLR
@@ -101,29 +101,7 @@ if __name__ == '__main__':
         num_query, args.local_rank
     )
 
-    print('Testing on MSMT17')
-    do_inference(cfg,
-                 model,
-                 val_loader,
-                 num_query)
-    
-    print('Testing on market')
-    cfg.defrost()
-    cfg.DATASETS.NAME = 'market1501'
-    cfg.DATASETS.ROOT_DIR = '/export/livia/home/vision/Rbhattacharya/work/data/data/market1501'
-    cfg.freeze()
-    train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    do_inference(cfg,
-                 model,
-                 val_loader,
-                 num_query)
-    
-    print('Testing on duke')
-    cfg.defrost()
-    cfg.DATASETS.NAME = 'dukemtmc'
-    cfg.DATASETS.ROOT_DIR = '/export/livia/home/vision/Rbhattacharya/work/data/data'
-    cfg.freeze()
-    train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
+    print('Testing:')
     do_inference(cfg,
                  model,
                  val_loader,

@@ -5,25 +5,34 @@ from utils.reranking import re_ranking
 from tqdm import tqdm
 
 
-def euclidean_distance(qf, gf):
+def euclidean_distance(qf, gf, modified=False, return_tensor=False):
+    if modified:
+        qf = qf.unsqueeze(0)
     m = qf.shape[0]
     n = gf.shape[0]
     dist_mat = torch.pow(qf, 2).sum(dim=1, keepdim=True).expand(m, n) + \
                torch.pow(gf, 2).sum(dim=1, keepdim=True).expand(n, m).t()
     dist_mat.addmm_(1, -2, qf, gf.t())
-    return dist_mat.cpu().numpy()
+    if return_tensor:
+        return dist_mat
+    return dist_mat.detach().cpu().numpy()
 
-def cosine_similarity(qf, gf):
+def cosine_similarity(qf, gf, modified=False, return_tensor=False, invert=True):
+    if modified:
+        qf = qf.unsqueeze(0)
     epsilon = 0.00001
     dist_mat = qf.mm(gf.t())
     qf_norm = torch.norm(qf, p=2, dim=1, keepdim=True)  # mx1
     gf_norm = torch.norm(gf, p=2, dim=1, keepdim=True)  # nx1
     qg_normdot = qf_norm.mm(gf_norm.t())
 
-    dist_mat = dist_mat.mul(1 / qg_normdot).cpu().numpy()
-    dist_mat = np.clip(dist_mat, -1 + epsilon, 1 - epsilon)
-    dist_mat = np.arccos(dist_mat)
-    return dist_mat
+    dist_mat = dist_mat.mul(1 / qg_normdot) # .cpu().numpy()
+    dist_mat = torch.clip(dist_mat, -1 + epsilon, 1 - epsilon)
+    if invert: dist_mat = torch.arccos(dist_mat)
+    if return_tensor:
+        return dist_mat
+    else:
+        return dist_mat.detach().cpu().numpy()
 
 
 def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_cam=None):
@@ -45,6 +54,7 @@ def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_
     all_cmc = []
     all_AP = []
     num_valid_q = 0.  # number of valid query
+    removed = 0
     for q_idx in tqdm(range(num_q), total=num_q):
         # get query pid and camid
         if exclude_cam is not None:
@@ -81,7 +91,9 @@ def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_
         tmp_cmc = np.asarray(tmp_cmc) * orig_cmc
         AP = tmp_cmc.sum() / num_rel
         all_AP.append(AP)
-
+        removed += remove.sum()
+    print(f"Removed: {removed}/{num_q}; Total valid queries: {num_valid_q}/{num_q}")
+    
     assert num_valid_q > 0, "Error: all query identities do not appear in gallery"
 
     all_cmc = np.asarray(all_cmc).astype(np.float32)

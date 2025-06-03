@@ -1,9 +1,9 @@
 import os
-from config import cfg_base as cfg
+from config_transreid import cfg
 import argparse
 from datasets.make_dataloader import make_dataloader
-from model.make_model import make_model
-from processor.processor import do_inference
+from model.make_model_transreid import make_model
+from processor.processor import *
 from utils.logger import setup_logger
 
 
@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_file", default="configs/person/vit_base.yml", help="path to config file", type=str
     )
+    parser.add_argument("--norm", help="Normalize the features", default=False, type=bool)
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
 
@@ -39,7 +40,12 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-
+    if "msmt" in cfg.TEST.WEIGHT or "train1" in cfg.TEST.WEIGHT:
+        num_classes = 1041
+    elif "duke" in cfg.TEST.WEIGHT:
+        num_classes = 702
+    elif "market" in cfg.TEST.WEIGHT:
+        num_classes = 751
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
     model.load_param(cfg.TEST.WEIGHT)
 
@@ -62,9 +68,9 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, mAP, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}, sum_mAP {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0, all_mAP.sum()/10.0))
     else:
-       do_inference(cfg,
+       do_inference_modified(cfg,
                  model,
                  val_loader,
-                 num_query)
+                 num_query, camera_normalize=args.norm, samples_per_camera=5)
 
 

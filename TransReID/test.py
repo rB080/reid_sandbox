@@ -11,6 +11,7 @@ import torch
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
+    parser.add_argument("--norm", help="Normalize the features", default=False, type=bool)
     parser.add_argument(
         "--config_file", default="", help="path to config file", type=str
     )
@@ -43,7 +44,13 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    num_classes = 1041
+    # num_classes = 822 #626 #751 #822 #822 #998
+    if "msmt" in cfg.TEST.WEIGHT:
+        num_classes = 1041 #1041 #822 #1041
+    elif "duke" in cfg.TEST.WEIGHT:
+        num_classes = 702 #626 # 702
+    elif "market" in cfg.TEST.WEIGHT:
+        num_classes = 751
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
     model.load_param(cfg.TEST.WEIGHT)
 
@@ -69,12 +76,12 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0))
     else:
-       feat_save_path = "/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/testing_msmt17_market1501"
+       feat_save_path = None # "/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/TransReID/outputs/testing_msmt17_market1501"
        if feat_save_path is not None: os.makedirs(feat_save_path, exist_ok=True)
        do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, segmentor=None, path=feat_save_path, camera_normalize=False)
+                 num_query, segmentor=None, path=feat_save_path, camera_normalize=args.norm)
     #    do_inference_camidwise(cfg,
     #              model,
     #              val_loader,

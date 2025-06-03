@@ -1,16 +1,17 @@
 from utils.logger import setup_logger
 from datasets.make_dataloader import make_dataloader
-from model.make_model import make_model
+from model.make_model_transreid import make_model
 from solver.make_optimizer import make_optimizer
 from solver.lr_scheduler import WarmupMultiStepLR
+from solver.scheduler_factory import create_scheduler_transreid
 from loss.make_loss import make_loss
-from processor.processor import do_train
+from processor.processor import *
 import random
 import torch
 import numpy as np
 import os
 import argparse
-from config import cfg_base as cfg
+from config_transreid import cfg
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -22,7 +23,9 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = True
 
 if __name__ == '__main__':
-
+    print(f"GPU available: {torch.cuda.is_available()}")
+    print(f"GPU count: {torch.cuda.device_count()}")
+    print(f"Current device: {torch.cuda.current_device()}")
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
     parser.add_argument(
         "--config_file", default="configs/person/vit_base.yml", help="path to config file", type=str
@@ -70,10 +73,11 @@ if __name__ == '__main__':
 
     optimizer, optimizer_center = make_optimizer(cfg, model, center_criterion)
 
-    scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
-                                  cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
+    #scheduler = WarmupMultiStepLR(optimizer, cfg.SOLVER.STEPS, cfg.SOLVER.GAMMA, cfg.SOLVER.WARMUP_FACTOR,
+                                  #cfg.SOLVER.WARMUP_ITERS, cfg.SOLVER.WARMUP_METHOD)
+    scheduler = create_scheduler_transreid(cfg, optimizer)
 
-    do_train(
+    do_train_modified(
         cfg,
         model,
         center_criterion,
@@ -85,3 +89,9 @@ if __name__ == '__main__':
         loss_func,
         num_query, args.local_rank
     )
+
+    print('Testing:')
+    do_inference_modified(cfg,
+                 model,
+                 val_loader,
+                 num_query)

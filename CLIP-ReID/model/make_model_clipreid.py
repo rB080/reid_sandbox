@@ -143,8 +143,9 @@ class build_transformer(nn.Module):
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None, tta_module=None, tta=False, stage2=False):
-        #breakpoint()
+        
         if get_text == True:
+            # breakpoint()
             prompts = self.prompt_learner(label, stage2=stage2) 
             text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
             return text_features
@@ -302,7 +303,7 @@ class PromptLearner(nn.Module):
         self.n_cls_ctx = n_cls_ctx
 
     def forward(self, label, stage2=False):
-        #breakpoint()
+        # breakpoint()
         cls_ctx = self.cls_ctx[label] 
         b = label.shape[0]
         prefix = self.token_prefix.expand(b, -1, -1) 

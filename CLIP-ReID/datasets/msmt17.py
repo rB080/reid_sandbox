@@ -53,10 +53,12 @@ class MSMT17(BaseImageDataset):
         # Trim experiments
         #self.query = self.remove_camid(self.query, [11, 12, 13], keep_only=True)
         #self.gallery = self.remove_camid(self.gallery, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14], keep_only=True)
+        
         # self.train = self.remove_camid(self.train, [1, 2, 3, 4, 5,], keep_only=True)
-        self.query = self.remove_camid(self.query, [1, 2, 3, 4, 5, 14], keep_only=True)
+        self.query = self.remove_camid(self.query, [0], keep_only=True)
         self.gallery = self.remove_camid(self.gallery, [1, 2, 3, 4, 5], keep_only=True)
-        #self.train = self.reduce_train_data(self.train)
+        
+        # self.train = self.reduce_train_data(self.train, num_per_cam=1180)
         #self.query = self.remove_camid(self.train, [0], keep_only=True)
         #self.train = self.remove_camid(self.train, [11, 12, 13], keep_only=True)
         if verbose:

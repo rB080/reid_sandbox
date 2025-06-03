@@ -21,6 +21,7 @@ def euclidean_dist(x, y):
     Returns:
       dist: pytorch Variable, with shape [m, n]
     """
+    # breakpoint()
     m, n = x.size(0), y.size(0)
     xx = torch.pow(x, 2).sum(1, keepdim=True).expand(m, n)
     yy = torch.pow(y, 2).sum(1, keepdim=True).expand(n, m).t()
@@ -119,6 +120,7 @@ class TripletLoss(object):
             self.ranking_loss = nn.SoftMarginLoss()
 
     def __call__(self, global_feat, labels, normalize_feature=False):
+        # breakpoint()
         if normalize_feature:
             global_feat = normalize(global_feat, axis=-1)
         dist_mat = euclidean_dist(global_feat, global_feat)

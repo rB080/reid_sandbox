@@ -85,7 +85,7 @@ def euclidean_distance_with_descriptors(qf, gf, textfeats, pids):
 
 
 
-def cosine_similarity(qf, gf, modified=False, return_tensor=False):
+def cosine_similarity(qf, gf, modified=False, return_tensor=False, invert=True):
     if modified:
         qf = qf.unsqueeze(0)
     epsilon = 0.00001
@@ -96,11 +96,52 @@ def cosine_similarity(qf, gf, modified=False, return_tensor=False):
 
     dist_mat = dist_mat.mul(1 / qg_normdot)#.cpu().numpy()
     dist_mat = torch.clip(dist_mat, -1 + epsilon, 1 - epsilon)
-    dist_mat = torch.arccos(dist_mat)
+    if invert: dist_mat = torch.arccos(dist_mat)
     if return_tensor:
         return dist_mat
     else:
         return dist_mat.detach().cpu().numpy()
+    
+
+def mahalanobis_distance(qf, gf, modified=False, return_tensor=False):
+    """
+    Compute Mahalanobis distance matrix between qf (B, D) and gf (N, D) using inverse covariance matrix S_inv (D, D).
+
+    Returns:
+        Tensor of shape (B, N) where entry (i, j) is the Mahalanobis distance between qf[i] and gf[j].
+    """
+    if modified:
+        qf = qf.unsqueeze(0)
+    # Center the data
+    G_centered = gf - gf.mean(dim=0, keepdim=True)
+
+    # Compute covariance matrix
+    cov = (G_centered.T @ G_centered) / (qf.shape[0] - 1)
+
+    # Invert the covariance matrix
+    S_inv = torch.linalg.pinv(cov)  # Use pinv for numerical stability
+
+    # Compute projections
+    Q_proj = qf @ S_inv          # shape: (B, D)
+    G_proj = gf @ S_inv          # shape: (N, D)
+
+    # Compute squared terms
+    Q_sq = (Q_proj * qf).sum(dim=1)       # shape: (B,)
+    G_sq = (G_proj * gf).sum(dim=1)       # shape: (N,)
+
+    # Cross term
+    cross_term = Q_proj @ gf.T            # shape: (B, N)
+
+    # Compute squared Mahalanobis distances
+    D_sq = Q_sq[:, None] - 2 * cross_term + G_sq[None, :]
+
+    # Numerical stability and final distance
+    dist_mat =  torch.sqrt(torch.clamp(D_sq, min=1e-8))
+    if return_tensor:
+        return dist_mat
+    else:
+        return dist_mat.detach().cpu().numpy()
+
 
 
 def eval_func(distmat, q_pids, g_pids, q_camids, g_camids, max_rank=50, exclude_cam=None):

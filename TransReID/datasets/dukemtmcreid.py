@@ -8,6 +8,8 @@ import glob
 import re
 import urllib
 import zipfile
+import random
+from tqdm import tqdm
 
 import os.path as osp
 
@@ -34,9 +36,9 @@ class DukeMTMCreID(BaseImageDataset):
         super(DukeMTMCreID, self).__init__()
         self.dataset_dir = osp.join(root, self.dataset_dir)
         self.dataset_url = 'http://vision.cs.duke.edu/DukeMTMC/data/misc/DukeMTMC-reID.zip'
-        self.train_dir = osp.join(self.dataset_dir, 'bounding_box_train')
-        self.query_dir = osp.join(self.dataset_dir, 'query')
-        self.gallery_dir = osp.join(self.dataset_dir, 'bounding_box_test')
+        self.train_dir = osp.join(self.dataset_dir, 'DukeMTMC-reID/bounding_box_train')
+        self.query_dir = osp.join(self.dataset_dir, 'DukeMTMC-reID/query')
+        self.gallery_dir = osp.join(self.dataset_dir, 'DukeMTMC-reID/bounding_box_test')
         self.pid_begin = pid_begin
         self._download_data()
         self._check_before_run()
@@ -52,10 +54,95 @@ class DukeMTMCreID(BaseImageDataset):
         self.train = train
         self.query = query
         self.gallery = gallery
+        #breakpoint()
+        # Trim experiments
+        #self.query = self.remove_camid(self.query, [11, 12, 13], keep_only=True)
+        #self.gallery = self.remove_camid(self.gallery, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14], keep_only=True)
+        
+        # self.train = self.remove_camid(self.train, [1, 2, 3, 4, 5], keep_only=True, unique_pids=True)
+        # self.query = self.remove_camid(self.query, [14], keep_only=True)
+        # self.gallery = self.remove_camid(self.gallery, [1, 2, 3, 4, 5], keep_only=True)
+        
+        self.train = self.reduce_train_data(self.train, num_per_cam=1358)
+        #self.query = self.remove_camid(self.train, [0], keep_only=True)
+        #self.train = self.remove_camid(self.train, [11, 12, 13], keep_only=True)
+        if verbose:
+            print("=> DUKE-MTMC-REID statistics after trimming")
+            self.print_dataset_statistics(self.train, self.query, self.gallery)
 
         self.num_train_pids, self.num_train_imgs, self.num_train_cams, self.num_train_vids = self.get_imagedata_info(self.train)
         self.num_query_pids, self.num_query_imgs, self.num_query_cams, self.num_query_vids = self.get_imagedata_info(self.query)
         self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_cams, self.num_gallery_vids = self.get_imagedata_info(self.gallery)
+
+    def remove_camid(self, dataset, camids, keep_only=False, unique_pids=False):
+        camids = list(set(camids))
+        new_dataset = []
+        if unique_pids:
+            pids = set()
+        else: pids = []
+        for d in tqdm(dataset, total=len(dataset), desc="Trimming dataset"):
+            
+            #breakpoint()
+            cid = d[2]
+            if keep_only:
+                if cid in camids: 
+                    if unique_pids: pids.add(d[1])
+                    else: pids.append(d[1])
+                    new_dataset.append(d)
+            else:
+                if cid not in camids: 
+                    if unique_pids: pids.add(d[1])
+                    else: pids.append(d[1])
+                    new_dataset.append(d)
+
+        if unique_pids:
+            pids = list(pids)
+            for idx in range(len(new_dataset)):
+                new_dataset[idx] = (new_dataset[idx][0], pids.index(new_dataset[idx][1]), new_dataset[idx][2], new_dataset[idx][3])
+        else: 
+            for idx in range(len(new_dataset)):
+                new_dataset[idx] = (new_dataset[idx][0], new_dataset[idx][1], new_dataset[idx][2], new_dataset[idx][3])
+
+        return new_dataset
+    
+    def reduce_train_data(self, dataset, num_per_cam=560):
+        dataset_dict, new_dataset = {}, []
+        new_pids = set()
+        for d in tqdm(dataset, total=len(dataset), desc="Trimming dataset"):
+            cid = d[2]
+            if cid not in list(dataset_dict.keys()):
+                dataset_dict[cid] = [d]
+            else: dataset_dict[cid].append(d)
+        
+        for k,v in dataset_dict.items():
+            print(f"Cam ID: {k}, Total: {len(v)}")
+            random.shuffle(dataset_dict[k])
+            dataset_dict[k] = dataset_dict[k][:num_per_cam]
+            for d in dataset_dict[k]:
+                new_pids.add(d[1])
+
+        new_pids = list(new_pids)
+        for k,v in dataset_dict.items():
+            print(f"Cam ID: {k}, Total: {len(v)}")
+            for d in dataset_dict[k]:
+                new_dataset.append((d[0], new_pids.index(d[1]), d[2], d[3]))
+        
+        random.shuffle(new_dataset)
+        return new_dataset
+    
+    def show_per_cam_stats(self, dataset):
+        samples_per_cam = {}
+        pids_per_cam = {}
+        for i in range(15): 
+            samples_per_cam[i] = []
+            pids_per_cam[i] = set()
+        
+        for d in dataset:
+            samples_per_cam[d[2]].append(d)
+            pids_per_cam[d[2]].add(d[1])
+        
+        for i in range(15):
+            print(f"CamID: {i}, Number of samples: {len(samples_per_cam[i])}, Number of PIDs: {len(list(pids_per_cam[i]))}")
 
     def _download_data(self):
         if osp.exists(self.dataset_dir):

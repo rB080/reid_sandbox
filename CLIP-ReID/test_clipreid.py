@@ -13,12 +13,13 @@ from utils.logger import setup_logger
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
+    parser.add_argument("--norm", help="Normalize the features", default=False, type=bool)
     parser.add_argument(
         "--config_file", default="configs/person/vit_clipreid.yml", help="path to config file", type=str
     )
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
-
+    
     args = parser.parse_args()
 
     if args.config_file != "":
@@ -43,7 +44,13 @@ if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
 
     train_loader, train_loader_normal, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
-    num_classes = 822 #822 #822 #998
+    num_classes = 822 #626 #751 #822 #822 #998
+    # if "MSMT" in cfg.TEST.WEIGHT:
+    #     num_classes = 1041
+    # elif "Duke" in cfg.TEST.WEIGHT:
+    #     num_classes = 702
+    # elif "Market" in cfg.TEST.WEIGHT:
+    #     num_classes = 751
     #camera_num = 5 
     #breakpoint()
     #camera_num = 5
@@ -75,12 +82,13 @@ if __name__ == "__main__":
             logger.info("rank_1:{}, rank_5 {} : trial : {}".format(rank_1, rank5, mAP, trial))
         logger.info("sum_rank_1:{:.1%}, sum_rank_5 {:.1%}, sum_mAP {:.1%}".format(all_rank_1.sum()/10.0, all_rank_5.sum()/10.0, all_mAP.sum()/10.0))
     else:
-        feat_save_path = None #"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/downloaded_models/msmt_duke/"
+        if not args.norm: feat_save_path = f"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/final_umap/noadapt" 
+        else: feat_save_path = f"/export/livia/home/vision/Rbhattacharya/work/reid_sandbox/CLIP-ReID/outputs/final_umap/norm"
         if feat_save_path is not None: os.makedirs(feat_save_path, exist_ok=True)
         do_inference(cfg,
                  model,
                  val_loader,
-                 num_query, segmentor=segmentor, path=feat_save_path, suffix='og', camera_normalize=True)
+                 num_query, segmentor=segmentor, path=feat_save_path, suffix='id5', camera_normalize=args.norm, samples_per_camera=100)
     #    do_inference_camidwise(cfg,
     #              model,
     #              val_loader,

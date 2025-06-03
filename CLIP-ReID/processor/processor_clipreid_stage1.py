@@ -81,8 +81,8 @@ def do_train_stage1(cfg,
             camid = cams_list[b_list]
             image_features = image_features_list[b_list]
             with amp.autocast(enabled=True):
-                # text_features = model(label = target, get_text = True) 
-                text_features = model(label = (target, camid), get_text = True) #remove tuple
+                text_features = model(label = target, get_text = True) 
+                # text_features = model(label = (target, camid), get_text = True) #remove tuple
                 if hasattr(model, "cam_prompt_learner") and isinstance(getattr(model, "cam_prompt_learner"), PromptLearner_background):
                     #camprompts = model.cam_prompt_learner(camid, stage2=False) 
                     #cam_text_features = model.text_encoder(camprompts, model.cam_prompt_learner.tokenized_prompts)

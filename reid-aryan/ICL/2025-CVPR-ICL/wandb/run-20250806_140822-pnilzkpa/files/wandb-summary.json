@@ -1,0 +1,1 @@
+{"_timestamp":1.7545048652398918e+09,"_runtime":1162,"val_epoch":2,"_wandb":{"runtime":1162},"bge_loss":22.537155151367188,"epoch":3,"loss":83.62327575683594,"txt_acc":0,"bge_aug_loss":15.718181610107422,"val_top1":68.85964965820312,"tse_aug_loss":20.236095428466797,"_step":424,"iteration":0,"id_loss":0,"tse_loss":25.131839752197266,"img_acc":0}

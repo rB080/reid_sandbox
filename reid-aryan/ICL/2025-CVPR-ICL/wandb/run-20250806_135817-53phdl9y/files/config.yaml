@@ -1,0 +1,219 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            uc0cmthdvgsc4rvnw49yiurdtvt28ywz:
+                args:
+                    - --noisy_rate
+                    - "0.0"
+                    - --noisy_file
+                    - ./noiseindex/RSTPReid_0.0.npy
+                    - --name
+                    - RDE
+                    - --img_aug
+                    - --txt_aug
+                    - --batch_size
+                    - "300"
+                    - --select_ratio
+                    - "0.3"
+                    - --tau
+                    - "0.015"
+                    - --root_dir
+                    - /export/livia/home/vision/Ashukla/aryan/reid/Data
+                    - --output_dir
+                    - run_logs
+                    - --margin
+                    - "0.1"
+                    - --dataset_name
+                    - RSTPReid
+                    - --loss_names
+                    - TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+                    - --num_epoch
+                    - "60"
+                    - --wandb_run_id
+                    - training_RSTPReid_001
+                    - --wandb_project
+                    - RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+                    - --distributed
+                codePath: 2025-CVPR-ICL/train.py
+                codePathLocal: train.py
+                cpu_count: 24
+                cpu_count_logical: 48
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "502391562240"
+                        used: "52380418048"
+                email: 2020ucs0077@iitjammu.ac.in
+                executable: /export/livia/home/vision/Ashukla/anaconda3/envs/icl/bin/python
+                git:
+                    commit: 55d7da633e81dc86af50a29c03c1e3bb690725e1
+                    remote: https://github.com/QinYang79/ICL.git
+                gpu: NVIDIA RTX A6000
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-7865d2f7-95f6-66f4-ed9f-316447540409
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-30485d40-aab9-10a8-acab-859d0d7a0892
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-ada32287-2ee6-49ab-76e8-c03092e6fda5
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-6c6d391a-20a3-e82b-9e98-eb0c7c5df144
+                host: bool2
+                memory:
+                    total: "540653416448"
+                os: Linux-5.15.0-143-generic-x86_64-with-glibc2.35
+                program: /export/livia/home/vision/Ashukla/aryan/reid/ICL/2025-CVPR-ICL/train.py
+                python: CPython 3.10.18
+                root: /export/livia/home/vision/Ashukla/aryan/reid/ICL/2025-CVPR-ICL
+                startedAt: "2025-08-06T17:58:17.553752Z"
+                writerId: uc0cmthdvgsc4rvnw49yiurdtvt28ywz
+        m: []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 51
+                - 53
+                - 105
+            "2":
+                - 1
+                - 5
+                - 41
+                - 51
+                - 53
+                - 105
+            "3":
+                - 13
+                - 16
+            "4": 3.10.18
+            "5": 0.21.0
+            "12": 0.21.0
+            "13": linux-x86_64
+alpha:
+    value: 0.9
+batch_size:
+    value: 300
+beta:
+    value: 0.999
+bias_lr_factor:
+    value: 2
+cmt_depth:
+    value: 4
+dataset_name:
+    value: RSTPReid
+distributed:
+    value: false
+eval_period:
+    value: 1
+gamma:
+    value: 0.1
+img_aug:
+    value: true
+img_size:
+    value:
+        - 384
+        - 128
+local_rank:
+    value: 0
+log_period:
+    value: 100
+loss_names:
+    value: TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+lr:
+    value: 1e-05
+lr_factor:
+    value: 5
+lrscheduler:
+    value: cosine
+margin:
+    value: 0.1
+masked_token_rate:
+    value: 0.8
+masked_token_unchanged_rate:
+    value: 0.1
+milestones:
+    value:
+        - 20
+        - 50
+momentum:
+    value: 0.9
+name:
+    value: RDE
+noisy_file:
+    value: ./noiseindex/RSTPReid_0.0.npy
+noisy_rate:
+    value: 0
+num_epoch:
+    value: 60
+num_instance:
+    value: 4
+num_workers:
+    value: 8
+optimizer:
+    value: Adam
+output_dir:
+    value: run_logs/RSTPReid/20250806_135805_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+power:
+    value: 0.9
+pretrain_choice:
+    value: ViT-B/16
+resume:
+    value: false
+resume_ckpt_file:
+    value: ""
+root_dir:
+    value: /export/livia/home/vision/Ashukla/aryan/reid/Data
+sampler:
+    value: random
+select_ratio:
+    value: 0.3
+stride_size:
+    value: 16
+target_lr:
+    value: 0
+tau:
+    value: 0.015
+temperature:
+    value: 0.02
+test_batch_size:
+    value: 512
+text_length:
+    value: 77
+training:
+    value: true
+txt_aug:
+    value: true
+val_dataset:
+    value: test
+vocab_size:
+    value: 49408
+wandb_project:
+    value: RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+wandb_run_id:
+    value: training_RSTPReid_001
+warmup_epochs:
+    value: 5
+warmup_factor:
+    value: 0.1
+warmup_method:
+    value: linear
+weight_decay:
+    value: 4e-05
+weight_decay_bias:
+    value: 0

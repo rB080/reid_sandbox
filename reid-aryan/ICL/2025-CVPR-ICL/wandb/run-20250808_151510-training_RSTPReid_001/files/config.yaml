@@ -1,0 +1,112 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            78akqgaac40lxhaf5mcp5m6itzy4bcw0:
+                args:
+                    - --noisy_rate
+                    - "0.0"
+                    - --noisy_file
+                    - ./noiseindex/RSTPReid_0.0.npy
+                    - --name
+                    - RDE
+                    - --img_aug
+                    - --txt_aug
+                    - --batch_size
+                    - "300"
+                    - --select_ratio
+                    - "0.3"
+                    - --tau
+                    - "0.015"
+                    - --root_dir
+                    - /export/livia/home/vision/Ashukla/aryan/reid/Data
+                    - --output_dir
+                    - run_logs
+                    - --margin
+                    - "0.1"
+                    - --dataset_name
+                    - RSTPReid
+                    - --loss_names
+                    - TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+                    - --num_epoch
+                    - "60"
+                    - --wandb_run_id
+                    - training_RSTPReid_001
+                    - --wandb_project
+                    - RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre
+                    - --distributed
+                    - --resume
+                    - --resume_ckpt_file
+                    - ./run_logs/RSTPReid/20250807_135550_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre/best.pth
+                codePath: 2025-CVPR-ICL/train.py
+                codePathLocal: train.py
+                cpu_count: 24
+                cpu_count_logical: 48
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "502391562240"
+                        used: "52393070592"
+                email: 2020ucs0077@iitjammu.ac.in
+                executable: /export/livia/home/vision/Ashukla/anaconda3/envs/icl/bin/python
+                git:
+                    commit: 55d7da633e81dc86af50a29c03c1e3bb690725e1
+                    remote: https://github.com/QinYang79/ICL.git
+                gpu: NVIDIA RTX A6000
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-7865d2f7-95f6-66f4-ed9f-316447540409
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-30485d40-aab9-10a8-acab-859d0d7a0892
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-ada32287-2ee6-49ab-76e8-c03092e6fda5
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "51527024640"
+                      name: NVIDIA RTX A6000
+                      uuid: GPU-6c6d391a-20a3-e82b-9e98-eb0c7c5df144
+                host: bool2
+                memory:
+                    total: "540653416448"
+                os: Linux-5.15.0-143-generic-x86_64-with-glibc2.35
+                program: /export/livia/home/vision/Ashukla/aryan/reid/ICL/2025-CVPR-ICL/train.py
+                python: CPython 3.10.18
+                root: /export/livia/home/vision/Ashukla/aryan/reid/ICL/2025-CVPR-ICL
+                startedAt: "2025-08-08T19:15:10.174286Z"
+                writerId: 78akqgaac40lxhaf5mcp5m6itzy4bcw0
+        m: []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 51
+                - 53
+                - 105
+            "2":
+                - 1
+                - 5
+                - 41
+                - 51
+                - 53
+                - 105
+            "3":
+                - 2
+                - 5
+                - 14
+                - 62
+            "4": 3.10.18
+            "5": 0.21.0
+            "12": 0.21.0
+            "13": linux-x86_64

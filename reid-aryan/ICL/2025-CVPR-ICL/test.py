@@ -18,13 +18,14 @@ from utils.iotools import load_train_configs
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="TranTextReID Text")
-    sub = '/home/qinyang/projects/ACVPR/RDE_bak/final_logs/CUHK-PEDES/20241113_011401_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+aug_dual_fixed_0.5'
+    # sub = '/home/qinyang/projects/ACVPR/RDE_bak/final_logs/CUHK-PEDES/20241113_011401_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+aug_dual_fixed_0.5'
+    sub = '/export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/ICL/2025-CVPR-ICL/run_logs/RSTPReid/20250808_151413_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre'
     parser.add_argument("--config_file", default=f'{sub}/configs.yaml')
     args = parser.parse_args()
     args = load_train_configs(args.config_file)
     args.training = False
     args.dataset_name = 'CUHK-PEDES'
-    args.root_dir='/home/qinyang/projects/data'
+    args.root_dir='/export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/Data'
     # CUHK-PEDES ICFG-PEDES RSTPReid UFine6926
     logger = setup_logger('RDE', save_dir=args.output_dir, if_train=args.training)
     logger.info(args)

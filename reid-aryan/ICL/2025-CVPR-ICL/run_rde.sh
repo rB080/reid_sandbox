@@ -36,7 +36,7 @@
 
 
 #!/bin/bash
-root_dir=/export/livia/home/vision/Ashukla/aryan/reid/Data
+root_dir=/export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/Data
 tau=0.015 
 margin=0.1
 noisy_rate=0.0  #0.0 0.2 0.5 0.8
@@ -66,7 +66,7 @@ CUDA_VISIBLE_DEVICES=2 \
     --wandb_project 'RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre' \
     --distributed \
     --resume \
-    --resume_ckpt_file './run_logs/CUHK-PEDES/20250807_135525_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre/best.pth'
+    --resume_ckpt_file './run_logs/CUHK-PEDES/20250808_151615_RDE_TAL+sr0.3_tau0.015_margin0.1_n0.0+aug+pre/best.pth'
     
     # --text_length 168  # for UFine6926
     # --text_length 77 

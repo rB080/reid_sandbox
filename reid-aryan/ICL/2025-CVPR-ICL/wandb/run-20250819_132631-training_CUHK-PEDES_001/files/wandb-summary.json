@@ -1,0 +1,1 @@
+{"epoch":60,"bge_loss":9.447688102722168,"txt_acc":0,"val_top1":77.95646667480469,"_wandb":{"runtime":38714},"loss":19.211334053418724,"tse_aug_loss":0.7741724252700806,"id_loss":0,"bge_aug_loss":0.7593802213668823,"_timestamp":1.7556356293861108e+09,"_runtime":38714,"tse_loss":8.230091094970703,"img_acc":0,"iteration":227,"val_epoch":60,"_step":16834}

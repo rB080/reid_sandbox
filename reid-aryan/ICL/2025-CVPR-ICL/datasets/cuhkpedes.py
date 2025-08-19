@@ -36,7 +36,7 @@ class CUHKPEDES(BaseDataset):
         self.img_dir = op.join(self.dataset_dir, 'imgs/')
 
         self.anno_path = op.join(self.dataset_dir, 'reid_raw.json')
-        self.anno_path = '/export/livia/home/vision/Ashukla/aryan/reid/Data/RDA_data/r_cuhk_1110_dec_1110.json'
+        self.anno_path = '/export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/Data/RDA_data/r_cuhk_1110_dec_1110.json'
   
         self._check_before_run()
 

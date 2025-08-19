@@ -67,7 +67,7 @@ if __name__ == '__main__':
             'RSTPReid': 'best2',
             'UFine6926': 'best0'
         }
-        model_pre = f'/export/livia/home/vision/Ashukla/aryan/reid/ICL/pretrained/{pre_dict[args.dataset_name]}.pth'
+        model_pre = f'/export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/ICL/pretrained/{pre_dict[args.dataset_name]}.pth'
         logger.info("loading {} model".format(model_pre))
         param_dict = torch.load(model_pre, map_location='cpu')['model']
         for k in list(param_dict.keys()):

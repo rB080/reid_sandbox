@@ -106,7 +106,7 @@ class ImageDataset(Dataset):
         # add by cross
         from utils.iotools import read_json
         import os.path as op
-        self.anno_path = '/export/livia/home/vision/Ashukla/aryan/reid/Data/RDA_data/r_icfg_1110_dec_1110.json'
+        self.anno_path = '//export/livia/home/vision/Ashukla/aryan/reid_sandbox/reid-aryan/Data/RDA_data/r_icfg_1110_dec_1110.json'
         test_annos = [] 
         for anno in read_json(self.anno_path): 
             if anno['split'] == 'test':
